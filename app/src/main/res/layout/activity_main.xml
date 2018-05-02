@@ -53,6 +53,13 @@
 
             </LinearLayout>
 
+            <ToggleButton
+                android:id="@+id/trainTypeToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textOn="Deutsche Bahn"
+                android:textOff="ItaliaRail"/>
+
             <TextView
                 android:id="@+id/textViewMessage"
                 android:layout_width="wrap_content"

@@ -15,10 +15,18 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.ToggleButton;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
 
 /**
  * Created by Mikhael LOPEZ on 14/12/2015.
@@ -38,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton floatingActionButtonOnOff;
     private View textViewMessage;
     private TextView textViewIpAccess;
+    private ToggleButton trainTypeToggleButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +58,16 @@ public class MainActivity extends AppCompatActivity {
         editTextPort = (EditText) findViewById(R.id.editTextPort);
         textViewMessage = findViewById(R.id.textViewMessage);
         textViewIpAccess = (TextView) findViewById(R.id.textViewIpAccess);
+        trainTypeToggleButton = (ToggleButton) findViewById(R.id.trainTypeToggleButton);
+        trainTypeToggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+               if(androidWebServer != null) {
+                   androidWebServer.setTrainType(isChecked);
+               }
+            }
+        });
+
         setIpAccess();
         floatingActionButtonOnOff = (FloatingActionButton) findViewById(R.id.floatingActionButtonOnOff);
         floatingActionButtonOnOff.setOnClickListener(new View.OnClickListener() {
@@ -123,9 +142,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String getIpAccess() {
-        WifiManager wifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
-        final String formatedIpAddress = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
+        String formatedIpAddress = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
+        if (formatedIpAddress.equals("0.0.0.0")) {
+            String deviceIpAddress = "###.###.###.###";
+
+            try {
+                for (Enumeration<NetworkInterface> enumeration = NetworkInterface.getNetworkInterfaces(); enumeration.hasMoreElements();) {
+                    NetworkInterface networkInterface = enumeration.nextElement();
+
+                    for (Enumeration<InetAddress> enumerationIpAddr = networkInterface.getInetAddresses(); enumerationIpAddr.hasMoreElements();) {
+                        InetAddress inetAddress = enumerationIpAddr.nextElement();
+
+                        if (!inetAddress.isLoopbackAddress() && inetAddress.getAddress().length == 4)
+                        {
+                            deviceIpAddress = inetAddress.getHostAddress();
+
+                            Log.e("MainActivity", "deviceIpAddress: " + deviceIpAddress);
+                        }
+                    }
+                }
+            } catch (SocketException e) {
+                Log.e("MainActivity", "SocketException:" + e.getMessage());
+            }
+
+            formatedIpAddress = deviceIpAddress;
+        }
+
         return "http://" + formatedIpAddress + ":";
     }
 
@@ -135,13 +179,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public boolean isConnectedInWifi() {
-        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        NetworkInfo networkInfo = ((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()
-                && wifiManager.isWifiEnabled() && networkInfo.getTypeName().equals("WIFI")) {
-            return true;
-        }
-        return false;
+        return !getIpAccess().equals("http://0.0.0.0:");
     }
     //endregion
 
